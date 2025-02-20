@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>课程表</title>
+		<!-- 网站图标设置 -->
+		<link
+			rel="icon"
+			href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>"
+			type="image/svg+xml"
+		/>
+		<style>
+			:root {
+				/* 浅色主题 */
+				--light-primary: #3b82f6;
+				--light-success: #10b981;
+				--light-warning-bg: #fef9c3;
+				--light-bg: #f3f4f6;
+				--light-card-bg: #ffffff;
+				--light-border: #e5e7eb;
+				--light-text: #333333;
+				--light-text-secondary: #666666;
+				--light-highlight: #dbeafe;
+
+				/* 深色主题 */
+				--dark-primary: #60a5fa;
+				--dark-success: #34d399;
+				--dark-warning-bg: #78350f;
+				--dark-bg: #1f2937;
+				--dark-card-bg: #111827;
+				--dark-border: #374151;
+				--dark-text: #f3f4f6;
+				--dark-text-secondary: #9ca3af;
+				--dark-highlight: #1e3a8a;
+
+				/* 默认使用浅色主题 */
+				--primary: var(--light-primary);
+				--success: var(--light-success);
+				--warning-bg: var(--light-warning-bg);
+				--bg: var(--light-bg);
+				--card-bg: var(--light-card-bg);
+				--border: var(--light-border);
+				--text: var(--light-text);
+				--text-secondary: var(--light-text-secondary);
+				--highlight: var(--light-highlight);
+			}
+
+			.dark-theme {
+				--primary: var(--dark-primary);
+				--success: var(--dark-success);
+				--warning-bg: var(--dark-warning-bg);
+				--bg: var(--dark-bg);
+				--card-bg: var(--dark-card-bg);
+				--border: var(--dark-border);
+				--text: var(--dark-text);
+				--text-secondary: var(--dark-text-secondary);
+				--highlight: var(--dark-highlight);
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				transition: background-color 0.3s, color 0.3s;
+			}
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+					sans-serif;
+				padding: 10px;
+				background-color: var(--bg);
+				color: var(--text);
+			}
+
+			.container {
+				max-width: 90%;
+				width: 42rem;
+				margin: 0 auto;
+				padding: 1rem;
+				background-color: var(--card-bg);
+				border-radius: 0.75rem;
+				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+			}
+
+			.time-display {
+				text-align: center;
+				padding: 1rem 0;
+				margin-bottom: 1rem;
+				border-radius: 0.5rem;
+				background-color: var(--primary);
+				color: white;
+				position: relative;
+			}
+
+			.current-time {
+				font-size: 1.75rem;
+				font-weight: bold;
+				margin-bottom: 0.25rem;
+			}
+
+			.current-date {
+				font-size: 1.25rem;
+			}
+
+			.grid {
+				display: grid;
+				gap: 1rem;
+			}
+
+			.card {
+				background-color: var(--card-bg);
+				padding: 1rem;
+				border-radius: 0.5rem;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				border: 1px solid var(--border);
+			}
+
+			.card h2 {
+				font-size: 1.25rem;
+				color: var(--text);
+				margin-bottom: 0.75rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.border-left-blue {
+				border-left: 4px solid var(--primary);
+				padding-left: 1rem;
+			}
+
+			.border-left-green {
+				border-left: 4px solid var(--success);
+				padding-left: 1rem;
+			}
+
+			.course-info {
+				padding: 0.75rem;
+				border-radius: 0.375rem;
+				background-color: var(--bg);
+			}
+
+			.course-name {
+				font-size: 1.25rem;
+				font-weight: bold;
+				color: var(--text);
+				margin-bottom: 0.25rem;
+			}
+
+			.course-period,
+			.course-time {
+				font-size: 0.95rem;
+				color: var(--text-secondary);
+				margin-bottom: 0.25rem;
+			}
+
+			.course-countdown {
+				font-weight: bold;
+				color: var(--primary);
+			}
+
+			.bell-alert {
+				margin-top: 0.5rem;
+				padding: 0.5rem;
+				background-color: var(--warning-bg);
+				border-radius: 0.375rem;
+				font-weight: bold;
+				animation: pulse 2s infinite;
+				color: var(--text);
+			}
+
+			.table-container {
+				overflow-x: auto;
+				margin-top: 0.5rem;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.95rem;
+			}
+
+			th,
+			td {
+				padding: 0.75rem 0.5rem;
+				text-align: left;
+				border-bottom: 1px solid var(--border);
+				color: var(--text);
+			}
+
+			th {
+				background-color: var(--bg);
+				font-weight: 600;
+			}
+
+			tr.current-period {
+				background-color: var(--highlight);
+			}
+
+			.empty-course {
+				color: var(--text-secondary);
+				font-style: italic;
+			}
+
+			/* 主题切换按钮 */
+			.theme-toggle {
+				position: absolute;
+				top: 8px;
+				right: 8px;
+				background: none;
+				border: none;
+				font-size: 1.5rem;
+				cursor: pointer;
+				color: white;
+				transition: transform 0.3s;
+			}
+
+			.theme-toggle:hover {
+				transform: scale(1.1);
+			}
+
+			/* 响应式设计 */
+			@media (min-width: 768px) {
+				.container {
+					padding: 1.5rem;
+					max-width: 42rem;
+				}
+
+				.grid-desktop {
+					display: grid;
+					grid-template-columns: 1fr 1fr;
+					gap: 1rem;
+				}
+
+				.card h2 {
+					font-size: 1.4rem;
+				}
+
+				.current-time {
+					font-size: 2rem;
+				}
+			}
+
+			@keyframes pulse {
+				0%,
+				100% {
+					opacity: 1;
+				}
+				50% {
+					opacity: 0.5;
+				}
+			}
+		</style>
+		<style>
+			/* SVG图标样式 */
+			.theme-icon {
+				width: 24px;
+				height: 24px;
+				display: none;
+				fill: currentColor;
+			}
+
+			/* 控制显示哪个图标 */
+			.light-mode .sun-icon {
+				display: block;
+			}
+
+			.dark-mode .moon-icon {
+				display: block;
+			}
+
+			/* 主题切换按钮样式 */
+			.theme-toggle {
+				position: absolute;
+				top: 8px;
+				right: 8px;
+				background: none;
+				border: none;
+				cursor: pointer;
+				color: white;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 36px;
+				height: 36px;
+				border-radius: 50%;
+				transition: all 0.3s ease;
+				background-color: rgba(255, 255, 255, 0.2);
+			}
+
+			.theme-toggle:hover {
+				transform: scale(1.1);
+				background-color: rgba(255, 255, 255, 0.3);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="time-display">
+				<button
+					id="theme-toggle"
+					class="theme-toggle light-mode"
+					title="切换主题"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="theme-icon sun-icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<circle cx="12" cy="12" r="5"></circle>
+						<line x1="12" y1="1" x2="12" y2="3"></line>
+						<line x1="12" y1="21" x2="12" y2="23"></line>
+						<line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+						<line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+						<line x1="1" y1="12" x2="3" y2="12"></line>
+						<line x1="21" y1="12" x2="23" y2="12"></line>
+						<line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+						<line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+					</svg>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="theme-icon moon-icon"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+					</svg>
+				</button>
+				<p id="current-time" class="current-time"></p>
+				<p id="current-date" class="current-date"></p>
+				<div id="bell-status" class="bell-alert" style="display: none"></div>
+			</div>
+
+			<div class="grid">
+				<div class="grid-desktop">
+					<div class="card">
+						<h2>当前课程</h2>
+						<div id="current-course" class="course-info"></div>
+					</div>
+
+					<div class="card">
+						<h2>下一节课</h2>
+						<div id="next-course" class="course-info"></div>
+					</div>
+				</div>
+
+				<div class="card">
+					<h2>今日课程安排</h2>
+					<div class="table-container">
+						<table id="schedule-table">
+							<thead>
+								<tr>
+									<th>节次</th>
+									<th>时间</th>
+									<th>课程</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// 数据定义
+			const timePeriods = [
+				{ period: 1, start: "7:30", end: "8:00" },
+				{ period: 2, start: "8:30", end: "9:10" },
+				{ period: 3, start: "9:20", end: "10:00" },
+				{ period: 4, start: "10:10", end: "10:50" },
+				{ period: 5, start: "14:00", end: "14:40" },
+				{ period: 6, start: "14:50", end: "15:30" },
+				{ period: 7, start: "16:00", end: "17:00" },
+			];
+
+			const courses = [
+				{ name: "晨练", day: 1, startPeriod: 1, endPeriod: 1, weeks: "1-16" },
+				{
+					name: "中医基础理论",
+					day: 1,
+					startPeriod: 2,
+					endPeriod: 2,
+					weeks: "1-16",
+				},
+				{ name: "英语", day: 1, startPeriod: 3, endPeriod: 3, weeks: "1-16" },
+				{
+					name: "中医方剂",
+					day: 1,
+					startPeriod: 4,
+					endPeriod: 4,
+					weeks: "1-16",
+				},
+				{ name: "音乐", day: 1, startPeriod: 5, endPeriod: 5, weeks: "1-16" },
+				{ name: "繁体字", day: 1, startPeriod: 6, endPeriod: 6, weeks: "1-16" },
+				{ name: "自习", day: 1, startPeriod: 7, endPeriod: 7, weeks: "1-16" },
+
+				{ name: "晨练", day: 2, startPeriod: 1, endPeriod: 1, weeks: "1-16" },
+				{
+					name: "中医方剂",
+					day: 2,
+					startPeriod: 2,
+					endPeriod: 2,
+					weeks: "1-16",
+				},
+				{ name: "繁体字", day: 2, startPeriod: 3, endPeriod: 3, weeks: "1-16" },
+				{ name: "英语", day: 2, startPeriod: 4, endPeriod: 4, weeks: "1-16" },
+				{
+					name: "中医基础理论",
+					day: 2,
+					startPeriod: 5,
+					endPeriod: 5,
+					weeks: "1-16",
+				},
+				{ name: "体育", day: 2, startPeriod: 6, endPeriod: 6, weeks: "1-16" },
+				{ name: "自习", day: 2, startPeriod: 7, endPeriod: 7, weeks: "1-16" },
+
+				{ name: "晨练", day: 3, startPeriod: 1, endPeriod: 1, weeks: "1-16" },
+				{ name: "英语", day: 3, startPeriod: 2, endPeriod: 2, weeks: "1-16" },
+				{
+					name: "中医基础理论",
+					day: 3,
+					startPeriod: 3,
+					endPeriod: 3,
+					weeks: "1-16",
+				},
+				{
+					name: "中医方剂",
+					day: 3,
+					startPeriod: 4,
+					endPeriod: 4,
+					weeks: "1-16",
+				},
+				{ name: "音乐", day: 3, startPeriod: 5, endPeriod: 5, weeks: "1-16" },
+				{ name: "繁体字", day: 3, startPeriod: 6, endPeriod: 6, weeks: "1-16" },
+				{ name: "自习", day: 3, startPeriod: 7, endPeriod: 7, weeks: "1-16" },
+
+				{ name: "晨练", day: 4, startPeriod: 1, endPeriod: 1, weeks: "1-16" },
+				{
+					name: "中医基础理论",
+					day: 4,
+					startPeriod: 2,
+					endPeriod: 2,
+					weeks: "1-16",
+				},
+				{ name: "繁体字", day: 4, startPeriod: 3, endPeriod: 3, weeks: "1-16" },
+				{
+					name: "中医方剂",
+					day: 4,
+					startPeriod: 4,
+					endPeriod: 4,
+					weeks: "1-16",
+				},
+				{ name: "体育", day: 4, startPeriod: 5, endPeriod: 5, weeks: "1-16" },
+				{ name: "英语", day: 4, startPeriod: 6, endPeriod: 6, weeks: "1-16" },
+				{ name: "自习", day: 4, startPeriod: 7, endPeriod: 7, weeks: "1-16" },
+
+				{ name: "晨练", day: 5, startPeriod: 1, endPeriod: 1, weeks: "1-16" },
+				{
+					name: "中医方剂",
+					day: 5,
+					startPeriod: 2,
+					endPeriod: 2,
+					weeks: "1-16",
+				},
+				{ name: "英语", day: 5, startPeriod: 3, endPeriod: 3, weeks: "1-16" },
+				{
+					name: "中医基础理论",
+					day: 5,
+					startPeriod: 4,
+					endPeriod: 4,
+					weeks: "1-16",
+				},
+				{ name: "音乐", day: 5, startPeriod: 5, endPeriod: 5, weeks: "1-16" },
+				{ name: "繁体字", day: 5, startPeriod: 6, endPeriod: 6, weeks: "1-16" },
+				{ name: "自习", day: 5, startPeriod: 7, endPeriod: 7, weeks: "1-16" },
+			];
+
+			// 主题切换
+			const themeToggle = document.getElementById("theme-toggle");
+			themeToggle.addEventListener("click", toggleTheme);
+
+			// 检查本地存储的主题设置并应用
+			if (localStorage.getItem("theme") === "dark") {
+				document.body.classList.add("dark-theme");
+				themeToggle.classList.remove("light-mode");
+				themeToggle.classList.add("dark-mode");
+			} else {
+				themeToggle.classList.add("light-mode");
+				themeToggle.classList.remove("dark-mode");
+			}
+
+			function toggleTheme() {
+				if (document.body.classList.contains("dark-theme")) {
+					// 切换到亮色主题
+					document.body.classList.remove("dark-theme");
+					themeToggle.classList.remove("dark-mode");
+					themeToggle.classList.add("light-mode");
+					localStorage.setItem("theme", "light");
+				} else {
+					// 切换到暗色主题
+					document.body.classList.add("dark-theme");
+					themeToggle.classList.remove("light-mode");
+					themeToggle.classList.add("dark-mode");
+					localStorage.setItem("theme", "dark");
+				}
+			}
+
+			// 工具函数
+			function timeToMinutes(timeStr) {
+				const [hours, minutes] = timeStr.split(":").map(Number);
+				return hours * 60 + minutes;
+			}
+
+			function getCurrentPeriod(currentTime) {
+				const currentMinutes =
+					currentTime.getHours() * 60 + currentTime.getMinutes();
+
+				for (const period of timePeriods) {
+					const start = timeToMinutes(period.start);
+					const end = timeToMinutes(period.end);
+
+					if (currentMinutes >= start && currentMinutes <= end) {
+						return {
+							...period,
+							status: "during",
+							remaining: end - currentMinutes,
+						};
+					}
+
+					if (currentMinutes < start) {
+						return {
+							status: "before",
+							nextPeriod: period,
+							waiting: start - currentMinutes,
+						};
+					}
+				}
+
+				return { status: "after" };
+			}
+
+			function formatTimeWithSeconds(date) {
+				const hours = date.getHours().toString().padStart(2, "0");
+				const minutes = date.getMinutes().toString().padStart(2, "0");
+				const seconds = date.getSeconds().toString().padStart(2, "0");
+				return `${hours}:${minutes}:${seconds}`;
+			}
+
+			function updateDisplay() {
+				const now = new Date();
+
+				// 更新时间显示
+				document.getElementById("current-time").textContent =
+					formatTimeWithSeconds(now);
+				document.getElementById(
+					"current-date"
+				).textContent = `${now.getFullYear()}年${
+					now.getMonth() + 1
+				}月${now.getDate()}日 星期${
+					["日", "一", "二", "三", "四", "五", "六"][now.getDay()]
+				}`;
+
+				// 更新课程信息
+				updateCourseInfo(now);
+				updateScheduleTable(now);
+			}
+
+			function updateCourseInfo(now) {
+				const periodInfo = getCurrentPeriod(now);
+				const day = now.getDay() === 0 ? 7 : now.getDay();
+
+				// 当前课程逻辑
+				let currentCourseHtml = '<p class="empty-course">当前没有课程</p>';
+				if (periodInfo.status === "during") {
+					const course = courses.find(
+						(c) =>
+							c.day === day &&
+							c.startPeriod <= periodInfo.period &&
+							c.endPeriod >= periodInfo.period
+					);
+
+					if (course) {
+						currentCourseHtml = `
+            <div class="border-left-blue">
+              <p class="course-name">${course.name}</p>
+              <p class="course-period">第${periodInfo.period}节</p>
+              <p class="course-time">${periodInfo.start}-${periodInfo.end}</p>
+              <p class="course-countdown">距离下课还有 ${periodInfo.remaining}分钟</p>
+            </div>
+          `;
+					}
+				}
+				document.getElementById("current-course").innerHTML = currentCourseHtml;
+
+				// 下一节课逻辑
+				let nextCourseHtml = '<p class="empty-course">今天没有更多课程了</p>';
+				if (periodInfo.status !== "after" && periodInfo.nextPeriod) {
+					const nextCourse = courses.find(
+						(c) =>
+							c.day === day && c.startPeriod === periodInfo.nextPeriod.period
+					);
+
+					if (nextCourse) {
+						nextCourseHtml = `
+            <div class="border-left-green">
+              <p class="course-name">${nextCourse.name}</p>
+              <p class="course-period">第${periodInfo.nextPeriod.period}节</p>
+              <p class="course-time">${periodInfo.nextPeriod.start}-${
+							periodInfo.nextPeriod.end
+						}</p>
+              ${
+								periodInfo.waiting
+									? `<p class="course-countdown">距离上课还有 ${periodInfo.waiting}分钟</p>`
+									: ""
+							}
+            </div>
+          `;
+					}
+				}
+				document.getElementById("next-course").innerHTML = nextCourseHtml;
+
+				// 上课提醒
+				const bellStatus = document.getElementById("bell-status");
+				if (periodInfo.status === "before" && periodInfo.waiting <= 5) {
+					bellStatus.style.display = "block";
+					bellStatus.textContent = `⏰ 注意：${periodInfo.nextPeriod.start} 的课程将在 ${periodInfo.waiting} 分钟后开始`;
+				} else {
+					bellStatus.style.display = "none";
+				}
+			}
+
+			function updateScheduleTable(now) {
+				const day = now.getDay() === 0 ? 7 : now.getDay();
+				const tbody = document.querySelector("#schedule-table tbody");
+				const periodInfo = getCurrentPeriod(now);
+				tbody.innerHTML = "";
+
+				timePeriods.forEach((period) => {
+					const course = courses.find(
+						(c) =>
+							c.day === day &&
+							c.startPeriod <= period.period &&
+							c.endPeriod >= period.period
+					);
+
+					const isCurrentPeriod =
+						periodInfo.status === "during" &&
+						periodInfo.period === period.period;
+
+					const row = `
+          <tr class="${isCurrentPeriod ? "current-period" : ""}">
+            <td>第${period.period}节</td>
+            <td>${period.start}-${period.end}</td>
+            <td>${
+							course ? course.name : '<span class="empty-course">无课</span>'
+						}</td>
+          </tr>
+        `;
+					tbody.innerHTML += row;
+				});
+			}
+
+			// 初始化
+			setInterval(updateDisplay, 1000);
+			updateDisplay();
+		</script>
+	</body>
+</html>

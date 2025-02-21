@@ -525,27 +525,54 @@
 				const currentMinutes =
 					currentTime.getHours() * 60 + currentTime.getMinutes();
 
-				for (const period of timePeriods) {
+				// 首先检查是否在某节课时间内
+				for (let i = 0; i < timePeriods.length; i++) {
+					const period = timePeriods[i];
 					const start = timeToMinutes(period.start);
 					const end = timeToMinutes(period.end);
 
-					if (currentMinutes >= start && currentMinutes <= end) {
+					if (currentMinutes >= start && currentMinutes < end) {
+						// 在上课期间，找出下一节课
+						const nextPeriod =
+							i < timePeriods.length - 1 ? timePeriods[i + 1] : null;
+
 						return {
 							...period,
 							status: "during",
 							remaining: end - currentMinutes,
+							nextPeriod: nextPeriod,
 						};
 					}
 
-					if (currentMinutes < start) {
-						return {
-							status: "before",
-							nextPeriod: period,
-							waiting: start - currentMinutes,
-						};
+					// 检查是否在课间
+					if (i < timePeriods.length - 1) {
+						const nextPeriod = timePeriods[i + 1];
+						const nextStart = timeToMinutes(nextPeriod.start);
+
+						if (currentMinutes >= end && currentMinutes < nextStart) {
+							return {
+								status: "break",
+								currentBreak: {
+									after: period,
+									before: nextPeriod,
+								},
+								nextPeriod: nextPeriod,
+								waiting: nextStart - currentMinutes,
+							};
+						}
 					}
 				}
 
+				// 如果当前时间早于第一节课
+				if (currentMinutes < timeToMinutes(timePeriods[0].start)) {
+					return {
+						status: "before",
+						nextPeriod: timePeriods[0],
+						waiting: timeToMinutes(timePeriods[0].start) - currentMinutes,
+					};
+				}
+
+				// 如果当前时间晚于最后一节课
 				return { status: "after" };
 			}
 
@@ -580,7 +607,8 @@
 				const day = now.getDay() === 0 ? 7 : now.getDay();
 
 				// 当前课程逻辑
-				let currentCourseHtml = '<p class="empty-course">当前没有课程</p>';
+				let currentCourseHtml = "";
+
 				if (periodInfo.status === "during") {
 					const course = courses.find(
 						(c) =>
@@ -591,47 +619,75 @@
 
 					if (course) {
 						currentCourseHtml = `
-            <div class="border-left-blue">
-              <p class="course-name">${course.name}</p>
-              <p class="course-period">第${periodInfo.period}节</p>
-              <p class="course-time">${periodInfo.start}-${periodInfo.end}</p>
-              <p class="course-countdown">距离下课还有 ${periodInfo.remaining}分钟</p>
-            </div>
-          `;
+        <div class="border-left-blue">
+          <p class="course-name">${course.name}</p>
+          <p class="course-period">第${periodInfo.period}节</p>
+          <p class="course-time">${periodInfo.start}-${periodInfo.end}</p>
+          <p class="course-countdown">距离下课还有 ${periodInfo.remaining}分钟</p>
+        </div>
+      `;
 					}
+				} else if (periodInfo.status === "break") {
+					currentCourseHtml = `
+      <div class="border-left-blue">
+        <p class="course-name">课间休息</p>
+        <p class="course-period">第${periodInfo.currentBreak.after.period}节后</p>
+        <p class="course-time">当前时间</p>
+        <p class="course-countdown">正在休息中</p>
+      </div>
+    `;
+				} else {
+					currentCourseHtml = '<p class="empty-course">当前没有课程</p>';
 				}
+
 				document.getElementById("current-course").innerHTML = currentCourseHtml;
 
 				// 下一节课逻辑
 				let nextCourseHtml = '<p class="empty-course">今天没有更多课程了</p>';
-				if (periodInfo.status !== "after" && periodInfo.nextPeriod) {
+
+				// 确定下一节课
+				let nextPeriodObj = null;
+				if (
+					periodInfo.status === "during" ||
+					periodInfo.status === "break" ||
+					periodInfo.status === "before"
+				) {
+					nextPeriodObj = periodInfo.nextPeriod;
+				}
+
+				if (nextPeriodObj) {
 					const nextCourse = courses.find(
-						(c) =>
-							c.day === day && c.startPeriod === periodInfo.nextPeriod.period
+						(c) => c.day === day && c.startPeriod === nextPeriodObj.period
 					);
 
 					if (nextCourse) {
+						const waitingTime =
+							periodInfo.status === "during"
+								? timeToMinutes(periodInfo.end) -
+								  (now.getHours() * 60 + now.getMinutes()) +
+								  (timeToMinutes(nextPeriodObj.start) -
+										timeToMinutes(periodInfo.end))
+								: periodInfo.waiting || 0;
+
 						nextCourseHtml = `
-            <div class="border-left-green">
-              <p class="course-name">${nextCourse.name}</p>
-              <p class="course-period">第${periodInfo.nextPeriod.period}节</p>
-              <p class="course-time">${periodInfo.nextPeriod.start}-${
-							periodInfo.nextPeriod.end
-						}</p>
-              ${
-								periodInfo.waiting
-									? `<p class="course-countdown">距离上课还有 ${periodInfo.waiting}分钟</p>`
-									: ""
-							}
-            </div>
-          `;
+        <div class="border-left-green">
+          <p class="course-name">${nextCourse.name}</p>
+          <p class="course-period">第${nextPeriodObj.period}节</p>
+          <p class="course-time">${nextPeriodObj.start}-${nextPeriodObj.end}</p>
+          <p class="course-countdown">距离上课还有 ${waitingTime}分钟</p>
+        </div>
+      `;
 					}
 				}
+
 				document.getElementById("next-course").innerHTML = nextCourseHtml;
 
 				// 上课提醒
 				const bellStatus = document.getElementById("bell-status");
-				if (periodInfo.status === "before" && periodInfo.waiting <= 5) {
+				if (
+					(periodInfo.status === "before" || periodInfo.status === "break") &&
+					periodInfo.waiting <= 5
+				) {
 					bellStatus.style.display = "block";
 					bellStatus.textContent = `⏰ 注意：${periodInfo.nextPeriod.start} 的课程将在 ${periodInfo.waiting} 分钟后开始`;
 				} else {
